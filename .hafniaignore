@@ -5,6 +5,7 @@
 .git
 .venv
 .vscode
+.github
 
 *.jpg
 *.png
