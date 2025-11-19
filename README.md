@@ -75,7 +75,10 @@ Instead, you can package your trainer package and launch experiments directly fr
 hafnia configure
 
 # Launch experiment from command line
-hafnia experiment create --dataset midwest-vehicle-detection --trainer-path . --cmd "python scripts/train.py --epochs 1"
+hafnia experiment create --dataset midwest-vehicle-detection --trainer-path .
+
+hafnia experiment create --dataset midwest-vehicle-detection --trainer-path . --cmd "python scripts/train.py --epochs 1 --learning_rate 0.001"
+
 ```
 In above example the `--trainer-path` argument points to the local trainer package folder, the `midwest-vehicle-detection` dataset will be used, and the training commands specifies to only run for 1 epoch.
 

@@ -17,30 +17,9 @@
             "request": "launch",
             "program": "${workspaceFolder}/scripts/train.py",
             "args": [
-                "--dataset_local", "coco-2017-tiny",  // mnist, cifar10, cifar100, caltech-101, caltech-256
-                "--epochs", "1",
-                "--batch_size", "4",
-            ],
-        },
-        {
-            "name": "Create trainer package and experiment (GPU)",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "../hafnia/src/cli/__main__.py",
-            // hafnia experiment create --dataset mnist --name classifier --trainer-path . --cmd "python scripts/train.py" --environment "Free Tier"
-            "args": [
-                "experiment",
-                "create",
-                "--dataset",
-                "mnist",
-                "--name",
-                "classifier",
-                "--trainer-path",
-                "${workspaceFolder}",
-                "--cmd",
-                "python scripts/train.py",
-                "--environment",
-                "Free Tier",
+                "--dataset_local", "midwest-vehicle-detection",  // coco-2017, midwest-vehicle-detection
+                //"--epochs", "1",
+                //"--batch_size", "4",
             ],
         }
     ]

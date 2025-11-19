@@ -17,6 +17,7 @@ __pycache__
 dist/
 tests/
 mlruns/
+local_stuff/
 
 # Hafnia files
 trainer.zip

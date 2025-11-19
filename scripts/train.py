@@ -3,7 +3,6 @@ import shutil
 from pathlib import Path
 
 import polars as pl
-import tensorboard  # noqa: F401
 import torch
 from hafnia import utils
 from hafnia.dataset.dataset_names import SampleField
@@ -22,8 +21,9 @@ def parse_args():
     parser.add_argument(
         "--dataset_local", type=str, default="midwest-vehicle-detection", help="Dataset being used locally"
     )
+    parser.add_argument("--project_name", type=str, default="Trainer RF-DETR", help="Project name for the experiment")
     parser.add_argument("--model", type=str, default="RFDETRNano", help="Model architecture to use")
-    parser.add_argument("--epochs", type=int, default=30, help="Number of epochs to train")
+    parser.add_argument("--epochs", type=int, default=10, help="Number of epochs to train")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for training")
     parser.add_argument("--grad_accumulation_steps", type=int, default=1, help="Gradient accumulation steps")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="Learning rate for optimizer")
@@ -37,7 +37,7 @@ def main(args: argparse.Namespace):
         print("CUDA is available. Training on GPU.")
     else:
         print("CUDA is not available. Training on CPU.")
-    logger = HafniaLogger()
+    logger = HafniaLogger(project_name=args.project_name)
 
     if utils.is_hafnia_cloud_job():  # For hafnia cloud execution
         path_dataset = utils.get_dataset_path_in_hafnia_cloud()  # The path to the full/hidden dataset is returned
@@ -66,15 +66,12 @@ def main(args: argparse.Namespace):
     else:
         raise ValueError(f"Model {args.model} not recognized.")
 
-    # Remove images with no bounding boxes to avoid runtime errors during training
-    samples_with_bboxes = dataset.samples.filter(pl.col(SampleField.BITMASKS).list.len() > 0)
-    dataset = dataset.update_samples(samples_with_bboxes)
+    dataset = remove_images_with_no_bboxes(dataset)
 
     # Convert dataset to COCO format for training
     dataset_name = dataset.info.dataset_name
-    dataset_path = Path(".data") / f"{dataset_name}_roboflow_coco"
+    dataset_path = Path(".data") / f"format_coco_roboflow_{dataset_name}"
     dataset.to_coco_format(dataset_path)
-
     path_experiment = logger._local_experiment_path
     model.train(
         dataset_dir=dataset_path.as_posix(),
@@ -108,6 +105,19 @@ def main(args: argparse.Namespace):
         for file_path in file_paths:
             shutil.copy2(file_path, artifact_folder_path)
     return logger
+
+
+def remove_images_with_no_bboxes(dataset: HafniaDataset) -> HafniaDataset:
+    # Remove images with no bounding boxes to avoid runtime errors during training
+    if SampleField.BITMASKS in dataset.samples.columns:
+        filter_column_name = SampleField.BITMASKS
+    elif SampleField.BBOXES in dataset.samples.columns:
+        filter_column_name = SampleField.BBOXES
+    else:
+        raise ValueError("Dataset does not contain bounding box information.")
+    samples_with_bboxes = dataset.samples.filter(pl.col(filter_column_name).list.len() > 0)
+    dataset = dataset.update_samples(samples_with_bboxes)
+    return dataset
 
 
 if __name__ == "__main__":
