@@ -17,9 +17,10 @@
             "request": "launch",
             "program": "${workspaceFolder}/scripts/train.py",
             "args": [
-                "--dataset_local", "midwest-vehicle-detection",  // coco-2017, midwest-vehicle-detection
-                //"--epochs", "1",
-                //"--batch_size", "4",
+                "--dataset_local", "coco-2017",  // coco-2017, midwest-vehicle-detection
+                // "--model", "RFDETRSegPreview", // RFDETRNano, RFDETRSmall, RFDETRMedium, RFDETRLarge, RFDETRSegPreview
+                //"--batch_size", "2",
+                "--epochs", "1"
             ],
         }
     ]

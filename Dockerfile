@@ -1,8 +1,5 @@
-# Using this image to utilize GPU, cuda, and cudnn
-FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
-
-# Use this image for CPU loads to get faster build times 
-# FROM debian:bookworm-slim
+# Using slim Debian base image - CUDA/cuDNN will come from PyTorch wheels
+FROM debian:bookworm-slim
 
 # Install uv python package manager
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git

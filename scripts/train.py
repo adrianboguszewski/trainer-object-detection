@@ -37,6 +37,7 @@ def main(args: argparse.Namespace):
         print("CUDA is available. Training on GPU.")
     else:
         print("CUDA is not available. Training on CPU.")
+
     logger = HafniaLogger(project_name=args.project_name)
 
     if utils.is_hafnia_cloud_job():  # For hafnia cloud execution
@@ -53,16 +54,19 @@ def main(args: argparse.Namespace):
     configuration["trainer"] = "DETR Object Detection"
     logger.log_configuration(configuration)  # Log the configuration to the UI
 
-    if args.model == "RFDETRBase":
-        model = detr.RFDETRBase()
-    elif args.model == "RFDETRNano":
+    if args.model == "RFDETRNano":
         model = detr.RFDETRNano()
     elif args.model == "RFDETRSmall":
         model = detr.RFDETRSmall()
     elif args.model == "RFDETRMedium":
         model = detr.RFDETRMedium()
+    elif args.model == "RFDETRBase":
+        model = detr.RFDETRBase()
     elif args.model == "RFDETRLarge":
         model = detr.RFDETRLarge()
+    elif args.model == "RFDETRSegPreview":
+        torch.backends.cudnn.enabled = False  # Disable cuDNN to avoid runtime errors with RFDETRSegPreview
+        model = detr.RFDETRSegPreview()
     else:
         raise ValueError(f"Model {args.model} not recognized.")
 
