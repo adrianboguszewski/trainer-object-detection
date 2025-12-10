@@ -28,6 +28,7 @@
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
     "cSpell.words": [
+      "Bitmask",
       "cifar",
       "HAFNIA",
       "hafniaignore",
@@ -35,6 +36,7 @@
       "pyproject",
       "PYTHONPATH",
       "RFDETR",
+      "roboflow",
       "venv"
     ],
   }

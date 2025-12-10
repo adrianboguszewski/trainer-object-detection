@@ -7,6 +7,7 @@ import torch
 from hafnia import utils
 from hafnia.dataset.dataset_names import SampleField
 from hafnia.dataset.hafnia_dataset import HafniaDataset
+from hafnia.dataset.primitives import Bitmask
 from hafnia.experiment import HafniaLogger
 from hafnia.log import user_logger
 from rfdetr import detr
@@ -48,11 +49,10 @@ def main(args: argparse.Namespace):
     else:
         raise ValueError("You must provide a dataset name with the '--dataset_local DATASET_NAME' argument")
 
-    args.dataset = dataset.info.dataset_name
     configuration = vars(args)
+    configuration["dataset"] = dataset.info.dataset_name
     configuration["has_cuda"] = has_cuda
-    configuration["trainer"] = "DETR Object Detection"
-    logger.log_configuration(configuration)  # Log the configuration to the UI
+    logger.log_configuration(configuration)
 
     if args.model == "RFDETRNano":
         model = detr.RFDETRNano()
@@ -70,6 +70,12 @@ def main(args: argparse.Namespace):
     else:
         raise ValueError(f"Model {args.model} not recognized.")
 
+    if isinstance(model, detr.RFDETRSegPreview) and not dataset.has_primitive(Bitmask):
+        raise ValueError(
+            "You have selected an instance segmentation model ('RFDETRSegPreview') which requires a dataset with "
+            f"'Bitmask' primitive. The selected dataset '{dataset.info.dataset_name}' does not "
+            "include 'Bitmask' primitives. Please select a different model or dataset."
+        )
     dataset = remove_images_with_no_bboxes(dataset)
 
     # Convert dataset to COCO format for training
