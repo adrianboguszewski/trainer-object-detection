@@ -83,6 +83,7 @@ def main(args: argparse.Namespace):
     dataset_path = Path(".data") / f"format_coco_roboflow_{dataset_name}"
     dataset.to_coco_format(dataset_path)
     path_experiment = logger._local_experiment_path
+    path_experiment.mkdir(parents=True, exist_ok=True)
     model.train(
         dataset_dir=dataset_path.as_posix(),
         epochs=args.epochs,
