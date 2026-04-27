@@ -6,12 +6,15 @@
 .venv
 .vscode
 .github
+.gitattributes
 
 *.jpg
 *.png
 *.py[cod]
 
 **.egg-info/
+
+.claude/
 
 __pycache__
 dist/
@@ -20,6 +23,8 @@ mlruns/
 
 
 # Hafnia files
+mlflow.db
 local_stuff/
 trainer.zip
 state.json
+**/**.schema.json
