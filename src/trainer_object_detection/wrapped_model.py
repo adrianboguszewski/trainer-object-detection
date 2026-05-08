@@ -78,7 +78,7 @@ class InitModelConfig(BaseModel):
 
 
 class InferenceConfig(BaseModel):
-    compile: bool = False
+    compile: bool = True
     batch_size: int = 1
     threshold: float = 0.05
 
@@ -174,6 +174,10 @@ def primitive_and_model_from_name(
 def to_bbox_primitives(predictions, image_shape: Tuple[int, int], bbox_task: TaskInfo) -> list[Bbox]:
     predictions_bboxes = []
     for bbox, class_idx, confidence in zip(predictions.xyxy, predictions.class_id, predictions.confidence, strict=True):
+        # Model creates n+1 class indices, where the last index is "no object" or "__background__" class
+        is_background_class = class_idx.item() == len(bbox_task.classes)
+        if is_background_class:
+            continue
         bbox = Bbox(
             height=(bbox[3] - bbox[1]) / image_shape[0],
             width=(bbox[2] - bbox[0]) / image_shape[1],
