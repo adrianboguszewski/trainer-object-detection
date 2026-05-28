@@ -34,21 +34,40 @@ hafnia experiment create --recipe-id 8618234d-b4da-4aa9-bb3e-3be86bb50369 --trai
 
 @app.default
 def main(
-    model_path: Annotated[str, Parameter(help=("Path to trained model"))] = "./pretrained_models/RFDETRNano",
+    model_path: Annotated[str, Parameter(help="Path to the trained model folder")] = "./pretrained_models/RFDETRNano",
     inference: Annotated[Optional[InferenceConfig], Parameter(help="Inference configuration for the model")] = None,
     model_class_mapping: Annotated[
         Optional[str],
-        Parameter(help=f"Class mapping to use for the model. Options: {CLASS_MAPPING_OPTIONS}"),
+        Parameter(
+            help=(
+                "Class mapping applied to the model predictions to remap them into a common label space "
+                f"with the ground truth. Options: {CLASS_MAPPING_OPTIONS}"
+            )
+        ),
     ] = None,
     dataset_class_mapping: Annotated[
         Optional[str],
-        Parameter(help=f"Class mapping to use for the dataset ground truth. Options: {CLASS_MAPPING_OPTIONS}"),
+        Parameter(
+            help=(
+                "Class mapping applied to the dataset ground-truth labels to remap them into a common "
+                f"label space with the predictions. Options: {CLASS_MAPPING_OPTIONS}"
+            )
+        ),
     ] = None,
     samples: Annotated[
         Optional[int],
         Parameter(help="Limit the number of samples to run on. Useful for faster testing."),
     ] = None,
 ):
+    """Benchmark a trained or pretrained model on the test split of a Hafnia dataset.
+
+    Loads the dataset (the hidden dataset when running on the Hafnia platform, otherwise a public
+    sample dataset), runs the model on the test split, and logs detection metrics through
+    ``HafniaLogger``. The ``model_class_mapping`` and ``dataset_class_mapping`` flags can be used
+    to project predictions and/or ground truth into a common label space, which is needed when a
+    pretrained model (e.g. trained on COCO) is benchmarked against a dataset with a different
+    label space.
+    """
     inference = inference or InferenceConfig()
     logger = HafniaLogger(project_name="Benchmarking RF-DETR")
     if is_hafnia_cloud_job():  # For hafnia cloud execution

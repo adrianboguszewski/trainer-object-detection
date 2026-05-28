@@ -1,5 +1,5 @@
 {
-    "name": "scripts/train.py",
+    "name": "Main",
     "cmd": "python scripts/train.py",
     "json_schema": {
         "$defs": {

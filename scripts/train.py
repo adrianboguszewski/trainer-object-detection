@@ -33,13 +33,21 @@ INFERENCE_MODEL_OPTIONS = [DEFAULT_INFERENCE_MODEL, "checkpoint_best_regular", "
 def main(
     project_name: Annotated[str, Parameter(help="Project name for the experiment")] = "Trainer RF-DETR",
     model_path: Annotated[
-        str, Parameter(help=f"Model name or checkpoint path. Options: {MODEL_NAME_OPTIONS}")
+        str,
+        Parameter(
+            help=f"Path to a pretrained model folder used as the training starting point. Options: {MODEL_NAME_OPTIONS}"
+        ),
     ] = "./pretrained_models/RFDETRNano",
-    pretrained: Annotated[bool, Parameter(help="Use pretrained weights")] = True,
+    pretrained: Annotated[bool, Parameter(help="Initialize the model from pretrained weights")] = True,
     epochs: Annotated[int, Parameter(help="Number of epochs to train")] = 10,
     batch_size: Annotated[int, Parameter(help="Batch size for training")] = 8,
-    grad_accumulation_steps: Annotated[int, Parameter(help="Gradient accumulation steps")] = 1,
-    learning_rate: Annotated[float, Parameter(help="Learning rate for optimizer")] = 0.001,
+    grad_accumulation_steps: Annotated[
+        int,
+        Parameter(
+            help="Number of gradient accumulation steps (effective batch size = batch_size * grad_accumulation_steps)"
+        ),
+    ] = 1,
+    learning_rate: Annotated[float, Parameter(help="Learning rate for the optimizer")] = 0.001,
     resolution: Annotated[
         Optional[int],
         Parameter(help="Input resolution (square side in pixels). Defaults to each model's built-in value."),
@@ -47,24 +55,52 @@ def main(
     task_name: Annotated[
         Optional[str],
         Parameter(
-            help="Dataset task name used for training the model. Use only this if the dataset has multiple tasks"
+            help=(
+                "Dataset task name used for training. Only required when the dataset has multiple tasks "
+                "matching the model primitive."
+            )
         ),
     ] = None,
     samples: Annotated[
-        Optional[int], Parameter(help="Number of samples to use for training. Use for testing purposes.")
-    ] = -1,
+        Optional[int],
+        Parameter(help="Number of samples to use for training (omit to use all samples). Use for testing purposes."),
+    ] = None,
     stop_early: Annotated[
         bool,
-        Parameter(help="Break script before training starts. Can be used to avoid long training times during testing."),
+        Parameter(
+            help=(
+                "Exit before training starts. Can be used to avoid long training times when smoke-testing the pipeline."
+            )
+        ),
     ] = False,
     inference_model_name: Annotated[
         str,
-        Parameter(help=f"Inference model name or checkpoint path. Options: {INFERENCE_MODEL_OPTIONS}"),
+        Parameter(
+            help=(
+                f"Checkpoint used for the post-training benchmark on the test split. Options: {INFERENCE_MODEL_OPTIONS}"
+            )
+        ),
     ] = DEFAULT_INFERENCE_MODEL,
     inference_config: Annotated[
-        Optional[InferenceConfig], Parameter(help="Inference configuration for the model")
+        Optional[InferenceConfig], Parameter(help="Inference configuration used for the post-training benchmark")
     ] = None,
 ):
+    """Train an RF-DETR object detection model on a Hafnia dataset.
+
+    Loads the dataset (the hidden dataset when running on the Hafnia platform, otherwise the
+    small public sample dataset is used when executing locally), initializes an RF-DETR model from
+    the folder pointed to by ``model_path`` (optionally with pretrained weights), converts the
+    train/val splits to COCO format and runs RF-DETR training.
+
+    After training, every ``checkpoint_*.pth`` produced by RF-DETR is repackaged as a
+    standalone Hafnia model artifact (weights + serialized model config) under the experiment
+    model and checkpoints folders. The checkpoint selected by ``inference_model_name`` is then
+    loaded as a ``WrappedModel``, optimized for inference (e.g. ``torch.compile`` when enabled
+    via ``inference_config``) and run on the held-out test split. Predictions are written to
+    the experiment artifacts folder. When the test split has ground-truth annotations, detection
+    metrics are computed via ``metric_calculations`` and logged through ``HafniaLogger``; if no
+    ground truth is present the metric step is skipped with a warning.
+    """
     inference_config = inference_config or InferenceConfig()
     # Check cuda availability
     has_cuda = torch.cuda.is_available()
@@ -81,7 +117,7 @@ def main(
     else:
         dataset = HafniaDataset.from_name("eccv-cross-city", version="1.0.0")
 
-    if samples is not None and samples > 0:
+    if samples is not None:
         dataset = dataset.select_samples(n_samples=samples)
 
     inference_model_json = Path(model_path) / MODEL_CONFIG_NAME

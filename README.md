@@ -113,12 +113,12 @@ This trainer package is designed to work in a local environment with VS Code. To
 ### Scripts
 The [`scripts/`](scripts/) folder contains the entry points for training and a few related utilities. `train.py` is the primary script; the others are optional helpers for evaluating, inspecting, and serving models. Use `--help` on any script to see available command-line options.
 
-- **[`train.py`](scripts/train.py)** - Main training script. Trains an RF-DETR model on a Hafnia dataset. Defaults to `RFDETRNano` with pretrained weights and supports overriding model, epochs, batch size, learning rate, resolution, and sample count from the command line. This is the script invoked by the default training command `python scripts/train.py`.
+- **[`train.py`](scripts/train.py)** - Main training script. Trains an RF-DETR model on a Hafnia dataset. Defaults to `RFDETRNano` with pretrained weights and supports overriding model and other training parameters. This is the script invoked by the default training command `python scripts/train.py`.
 - **[`benchmark.py`](scripts/benchmark.py)** - Evaluates a trained or pretrained model on a dataset split and reports detection metrics. Supports class-mapping options on both the model and dataset side, which is useful when a pretrained model (e.g. COCO-trained) is benchmarked against a dataset with a different label space.
 - **[`inference.py`](scripts/inference.py)** - Runs the model over a dataset split and writes the predictions back as a Hafnia dataset. Use this to produce a predictions dataset for downstream analysis or visualization.
 - **[`visualize.py`](scripts/visualize.py)** - Runs prediction on a small subset of a dataset split and saves rendered images with bounding-box overlays to disk. Handy for quick visual sanity-checks of a model.
 - **[`create_pretrained_model.py`](scripts/create_pretrained_model.py)** - Maintenance utility that downloads RF-DETR pretrained weights and writes them, together with a serialized model config, into [`pretrained_models/`](pretrained_models/). Run this once to populate the local pretrained model cache used by the other scripts.
-- **[`*.schema.json`](scripts/*.schema.json)** - What are all the JSON Schema files for? Well nothing YET! The schema files are auto generated and describe the available parameters for each script. In a future version of the platform, these files are 
+- **[`*.schema.json`](scripts/*.schema.json)** - What are all the JSON Schema files for? Well nothing YET! The schema files are auto generated with the `auto_save_command_builder_schema` function and describe the available parameters for each script. In a future version of the platform, these files 
 will help users build and validate script commands like this  `python scripts/train.py --model RFDETRNano --epochs 5` through the portal.
 
 
@@ -142,7 +142,9 @@ hafnia experiment create --dataset midwest-detection-traffic --trainer-path . --
 # Example 3: Package and launch experiment with custom training command
 hafnia experiment create --dataset coco-2017 --trainer-path . --cmd "python scripts/train.py --model RFDETRSegPreview --batch_size 2  --epochs 3"
 
-
+# Use '--help' to see available options
+hafnia experiment --help
+hafnia experiment create --help
 ```
 Above examples create both a trainer package and an experiment for each execution. You may also just create a trainer package without launching an experiment or launch
 an experiment with an existing trainer package.
@@ -159,10 +161,14 @@ hafnia trainer create .
 
 # Launch experiment with existing trainer package
 hafnia experiment create --dataset midwest-detection-traffic --trainer-id 8aa608ef-536d-42de-9577-d0a3167e375f
+
+# Use '--help' to see available options
+hafnia trainer --help
+hafnia trainer ls --help
 ```
 
 ## Build and Launch Trainer Package Locally
-Finally, this final section helps to debug your trainer package, if you get errors during the build phase. 
+Finally, this final section helps to debug your trainer package, if you get errors during the build phase on the platform.
 
 When a trainer package is launched in the Hafnia platform, it will first build your trainer package environment based on the `Dockerfile` and potentially other files in the trainer package. In this trainer package, the `Dockerfile` also uses `pyproject.toml`, `uv.lock` and `.python-version` to create a virtual environment with all dependencies installed for
 your files. Once the build phase is complete, the trainer package will then be executed with the specified training command.
@@ -176,7 +182,7 @@ hafnia trainer create-zip .
 # Build the Docker image locally from a 'trainer.zip' file
 hafnia runc build-local trainer.zip
 
-# Execute the Docker image locally with a desired dataset
+# Execute the Docker image locally with a desired dataset. Note: This will only use the small sample for each dataset.
 hafnia runc launch-local --dataset midwest-detection-traffic  "python scripts/train.py"
 ```
 

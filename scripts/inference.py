@@ -21,11 +21,16 @@ CLASS_MAPPING_OPTIONS = [None, *utils.CLASS_MAPPINGS.keys()]
 
 @app.default
 def main(
-    model_path: Annotated[str, Parameter(help=("Path to trained model"))] = "./pretrained_models/RFDETRNano",
+    model_path: Annotated[str, Parameter(help="Path to the trained model folder")] = "./pretrained_models/RFDETRNano",
     inference: Annotated[Optional[InferenceConfig], Parameter(help="Inference configuration for the model")] = None,
     model_class_mapping: Annotated[
         Optional[str],
-        Parameter(help=f"Class mapping to use for the model. Options: {CLASS_MAPPING_OPTIONS}"),
+        Parameter(
+            help=(
+                "Class mapping applied to the model predictions to remap them into the dataset's "
+                f"label space. Options: {CLASS_MAPPING_OPTIONS}"
+            )
+        ),
     ] = None,
     split_name: Annotated[str, Parameter(help="Dataset split to run inference on")] = SplitName.TEST,
     output_path: Annotated[
@@ -36,7 +41,13 @@ def main(
         Parameter(help="Limit the number of samples to run on. Useful for faster testing."),
     ] = None,
 ):
+    """Run model inference on a Hafnia dataset split and write the predictions back as a Hafnia dataset.
 
+    Loads the dataset (the hidden dataset when running on the Hafnia platform, otherwise the small
+    public sample dataset is used when executing locally), runs the model on the requested split, and
+    writes the resulting dataset - with predictions appended as a new prediction task on each sample -
+    to ``output_path``. The output can be consumed by downstream analysis or visualization tools.
+    """
     inference = inference or InferenceConfig()
     logger = HafniaLogger(project_name="Inference RF-DETR")
     if is_hafnia_cloud_job():  # For hafnia cloud execution
