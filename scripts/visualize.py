@@ -27,9 +27,7 @@ def main(
     ] = ".data/predictions",
     dataset: Annotated[
         str,
-        Parameter(
-            help="Name of a public Hafnia sample dataset, or path to a local dataset on disk"
-        ),
+        Parameter(help="Name of a public Hafnia sample dataset, or path to a local dataset on disk"),
     ] = "midwest-vehicle-detection",
     split_name: Annotated[str, Parameter(help="Dataset split to run prediction on")] = SplitName.TEST,
     samples: Annotated[int, Parameter(help="Number of samples to predict and visualize")] = 10,
@@ -61,7 +59,7 @@ def main(
     if dataset_path.exists():
         hafnia_dataset = HafniaDataset.from_path(dataset_path)
     else:
-        hafnia_dataset = HafniaDataset.from_name(dataset)
+        hafnia_dataset = HafniaDataset.from_name(dataset, version="latest")
 
     path_model_config = Path(model_path) / "model_config.json"
     model = WrappedModel.load_model(path_model_config, inference_config=inference)

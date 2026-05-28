@@ -58,14 +58,6 @@ def test_benchmark_script():
     main(samples=2, model_class_mapping="COCO2OnlyVehicle", dataset_class_mapping="Midwest2OnlyVehicle")
 
 
-def test_inference_script():
-    from scripts.inference import main
-
-    if not torch.cuda.is_available():
-        pytest.skip("CUDA is not available. Skipping integration test.")
-    main(samples=2)
-
-
 def test_predict_script():
     from scripts.visualize import main
 
@@ -82,7 +74,7 @@ def _script_main(script_name: str):
     return module.main
 
 
-@pytest.mark.parametrize("script_name", ["train", "benchmark", "inference"])
+@pytest.mark.parametrize("script_name", ["train", "benchmark"])
 def test_command_builder_schema(script_name: str):
     """Test that the launch schema is up-to-date for each script."""
     main = _script_main(script_name)

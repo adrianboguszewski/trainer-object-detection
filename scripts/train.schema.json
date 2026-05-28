@@ -1,5 +1,5 @@
 {
-    "name": "Main",
+    "name": "scripts/train.py",
     "cmd": "python scripts/train.py",
     "json_schema": {
         "$defs": {
@@ -25,6 +25,7 @@
                 "type": "object"
             }
         },
+        "description": "Train an RF-DETR object detection model on a Hafnia dataset.\n\nLoads the dataset (the hidden dataset when running on the Hafnia platform, otherwise the\nsmall public sample dataset is used when executing locally), initializes an RF-DETR model from\nthe folder pointed to by ``model_path`` (optionally with pretrained weights), converts the\ntrain/val splits to COCO format and runs RF-DETR training.\n\nAfter training, every ``checkpoint_*.pth`` produced by RF-DETR is repackaged as a\nstandalone Hafnia model artifact (weights + serialized model config) under the experiment\nmodel and checkpoints folders. The checkpoint selected by ``inference_model_name`` is then\nloaded as a ``WrappedModel``, optimized for inference (e.g. ``torch.compile`` when enabled\nvia ``inference_config``) and run on the held-out test split. Predictions are written to\nthe experiment artifacts folder. When the test split has ground-truth annotations, detection\nmetrics are computed via ``metric_calculations`` and logged through ``HafniaLogger``; if no\nground truth is present the metric step is skipped with a warning.",
         "properties": {
             "project_name": {
                 "default": "Trainer RF-DETR",
@@ -34,13 +35,13 @@
             },
             "model_path": {
                 "default": "./pretrained_models/RFDETRNano",
-                "description": "Model name or checkpoint path. Options: ['pretrained_models/RFDETRNano', 'pretrained_models/RFDETRMedium', 'pretrained_models/RFDETRLarge', 'pretrained_models/RFDETRSegNano']",
+                "description": "Path to a pretrained model folder used as the training starting point. Options: ['pretrained_models/RFDETRNano', 'pretrained_models/RFDETRMedium', 'pretrained_models/RFDETRLarge', 'pretrained_models/RFDETRSegNano']",
                 "title": "Model Path",
                 "type": "string"
             },
             "pretrained": {
                 "default": true,
-                "description": "Use pretrained weights",
+                "description": "Initialize the model from pretrained weights",
                 "title": "Pretrained",
                 "type": "boolean"
             },
@@ -58,13 +59,13 @@
             },
             "grad_accumulation_steps": {
                 "default": 1,
-                "description": "Gradient accumulation steps",
+                "description": "Number of gradient accumulation steps (effective batch size = batch_size * grad_accumulation_steps)",
                 "title": "Grad Accumulation Steps",
                 "type": "integer"
             },
             "learning_rate": {
                 "default": 0.001,
-                "description": "Learning rate for optimizer",
+                "description": "Learning rate for the optimizer",
                 "title": "Learning Rate",
                 "type": "number"
             },
@@ -95,7 +96,7 @@
                     }
                 ],
                 "default": null,
-                "description": "Dataset task name used for training the model. Use only this if the dataset has multiple tasks",
+                "description": "Dataset task name used for training. Only required when the dataset has multiple tasks matching the model primitive.",
                 "title": "Task Name"
             },
             "samples": {
@@ -109,19 +110,19 @@
                         "title": "Select None"
                     }
                 ],
-                "default": -1,
-                "description": "Number of samples to use for training. Use for testing purposes.",
+                "default": null,
+                "description": "Number of samples to use for training (omit to use all samples). Use for testing purposes.",
                 "title": "Samples"
             },
             "stop_early": {
                 "default": false,
-                "description": "Break script before training starts. Can be used to avoid long training times during testing.",
+                "description": "Exit before training starts. Can be used to avoid long training times when smoke-testing the pipeline.",
                 "title": "Stop Early",
                 "type": "boolean"
             },
             "inference_model_name": {
                 "default": "checkpoint_best_ema",
-                "description": "Inference model name or checkpoint path. Options: ['checkpoint_best_ema', 'checkpoint_best_regular', 'checkpoint_best_total']",
+                "description": "Checkpoint used for the post-training benchmark on the test split. Options: ['checkpoint_best_ema', 'checkpoint_best_regular', 'checkpoint_best_total']",
                 "title": "Inference Model Name",
                 "type": "string"
             },
@@ -136,7 +137,7 @@
                     }
                 ],
                 "default": null,
-                "description": "Inference configuration for the model"
+                "description": "Inference configuration used for the post-training benchmark"
             }
         },
         "title": "mainArgs",
