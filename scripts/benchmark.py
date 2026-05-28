@@ -1,10 +1,10 @@
 from pathlib import Path
 from typing import Annotated
 
+import polars as pl
 from cyclopts import App, Parameter
-from hafnia.dataset.benchmark.benchmark import run_benchmark
-from hafnia.dataset.dataset_names import SplitName
-from hafnia.dataset.dataset_recipe.recipe_transforms import ClassMapper
+from hafnia.dataset.benchmark.benchmark import metric_calculations, run_inference_on_dataset
+from hafnia.dataset.dataset_names import SampleField, SplitName
 from hafnia.dataset.hafnia_dataset import HafniaDataset, Optional
 from hafnia.experiment import HafniaLogger
 from hafnia.experiment.command_builder import auto_save_command_builder_schema
@@ -54,19 +54,32 @@ def main(
             )
         ),
     ] = None,
+    split_name: Annotated[str, Parameter(help="Dataset split to run on")] = SplitName.TEST,
+    save_annotations: Annotated[
+        bool,
+        Parameter(
+            help="Write the predictions (annotations only, no image data) to the experiment artifacts folder."
+        ),
+    ] = True,
     samples: Annotated[
         Optional[int],
         Parameter(help="Limit the number of samples to run on. Useful for faster testing."),
     ] = None,
 ):
-    """Benchmark a trained or pretrained model on the test split of a Hafnia dataset.
+    """Run a model on a Hafnia dataset split and compute detection metrics when ground truth is available.
 
     Loads the dataset (the hidden dataset when running on the Hafnia platform, otherwise a public
-    sample dataset), runs the model on the test split, and logs detection metrics through
-    ``HafniaLogger``. The ``model_class_mapping`` and ``dataset_class_mapping`` flags can be used
-    to project predictions and/or ground truth into a common label space, which is needed when a
-    pretrained model (e.g. trained on COCO) is benchmarked against a dataset with a different
-    label space.
+    sample dataset), runs the model on the requested split, and - when the split has ground-truth
+    annotations - computes detection metrics and logs them through ``HafniaLogger``. When the split
+    has no ground truth (e.g. a held-out test set without labels) the metric step is skipped, so the
+    same script can also be used as a pure inference pass.
+
+    The ``model_class_mapping`` and ``dataset_class_mapping`` flags project predictions and/or
+    ground truth into a common label space, which is needed when a pretrained model (e.g. trained on
+    COCO) is benchmarked against a dataset with a different label space. When ``save_annotations`` is
+    set (default), the dataset with predictions appended as a new prediction task on each sample is
+    written - annotations only, no image data - to the experiment artifacts folder for downstream
+    analysis or visualization.
     """
     inference = inference or InferenceConfig()
     logger = HafniaLogger(project_name="Benchmarking RF-DETR")
@@ -81,7 +94,7 @@ def main(
     model = WrappedModel.load_model(path_model_config, inference_config=inference)
     model.optimize_for_inference()
 
-    dataset_split = dataset.create_split_dataset(split_name=SplitName.TEST)
+    dataset_split = dataset.create_split_dataset(split_name=split_name)
     dataset_task_info = dataset.info.get_task_by_primitive(model.task.primitive)
 
     configuration = {
@@ -95,23 +108,14 @@ def main(
         "num_samples": len(dataset_split),
         "class_mapping_model": model_class_mapping,
         "class_mapping_dataset": dataset_class_mapping,
+        "split_name": split_name,
     }
     logger.log_configuration(configuration)
 
     if samples is not None:
         dataset_split = dataset_split.select_samples(n_samples=samples, seed=42)
 
-    # Remapping of model prediction and/or ground-truth classes to a common label space
-    prediction_post_fix = "/predictions"
-    recipe_transforms = []
-    if model_class_mapping is not None:
-        recipe_transforms.append(
-            ClassMapper(
-                class_mapping=utils.CLASS_MAPPINGS[model_class_mapping],
-                method="remove_undefined",
-                task_name=f"{dataset_task_info.name}{prediction_post_fix}",
-            )
-        )
+    # Remap ground-truth classes to a common label space before inference if requested
     if dataset_class_mapping is not None:
         dataset_split = dataset_split.class_mapper(
             class_mapping=utils.CLASS_MAPPINGS[dataset_class_mapping],
@@ -119,15 +123,43 @@ def main(
             task_name=model.task.name,
         )
 
-    metrics, _ = run_benchmark(
+    # Run inference on the dataset. Predictions are appended as new tasks on each sample.
+    prediction_post_fix = "/predictions"
+    dataset_with_predictions = run_inference_on_dataset(
         dataset=dataset_split,
         model=model,
-        recipe_transforms=recipe_transforms,
         task_name_prediction_postfix=prediction_post_fix,
     )
 
+    # Remap model prediction classes into the dataset's label space if requested
+    if model_class_mapping is not None:
+        dataset_with_predictions = dataset_with_predictions.class_mapper(
+            class_mapping=utils.CLASS_MAPPINGS[model_class_mapping],
+            method="remove_undefined",
+            task_name=f"{dataset_task_info.name}{prediction_post_fix}",
+        )
+
+    # Save predictions to the experiment artifacts folder (annotations only, drops image-related columns)
+    if save_annotations:
+        drop_columns = [SampleField.FILE_PATH, SampleField.VIDEO_INFO, SampleField.CAMERA_INFO, SampleField.META]
+        dataset_with_predictions.samples = dataset_with_predictions.samples.drop(drop_columns, strict=False)
+        dataset_with_predictions.write_annotations(logger._path_artifacts())
+
+    # Skip metric calculation for splits without ground-truth annotations
+    gt_column = dataset_task_info.primitive.column_name()
+    no_gt_data = dataset_split.samples.select(pl.col(gt_column).list.len()).sum().item() == 0
+    if no_gt_data:
+        user_logger.warning("No ground-truth annotations found in the selected split. Skipping metric calculation.")
+        return logger
+
+    metrics = metric_calculations(
+        prediction_dataset=dataset_with_predictions,
+        prediction_task_name_postfix=prediction_post_fix,
+    )
     for metric_name, metric_value in metrics.items():
         logger.log_metric(metric_name, metric_value, step=0)
+
+    return logger
 
 
 if __name__ == "__main__":

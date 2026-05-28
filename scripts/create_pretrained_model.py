@@ -6,8 +6,8 @@ class names, and writes the weights together with a serialized model config into
 folder under ``pretrained_models/``. Any pre-existing folder for a given model is removed first.
 
 Run this once after cloning the repository (or whenever ``MODEL_OPTIONS`` changes) to refresh the
-``pretrained_models/`` cache that ``train.py``, ``benchmark.py``, ``inference.py`` and
-``visualize.py`` load models from.
+``pretrained_models/`` cache that ``train.py``, ``benchmark.py`` and ``visualize.py`` load models
+from.
 """
 
 import shutil

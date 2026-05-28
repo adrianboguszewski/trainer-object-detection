@@ -64,10 +64,11 @@
             "name": "Model Inference",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/scripts/inference.py",
+            "program": "${workspaceFolder}/scripts/benchmark.py",
             "args": [
-                "--model-path", "./pretrained_models/RFDETRNano", // RFDETRNano, RFDETRSmall, RFDETRMedium, RFDETRLarge, RFDETRSegPreview    
+                "--model-path", "./pretrained_models/RFDETRNano", // RFDETRNano, RFDETRSmall, RFDETRMedium, RFDETRLarge, RFDETRSegPreview
                 "--model-class-mapping", "COCO2OnlyVehicle",
+                "--output-path", "./.data/inference_output",
                 "--samples", "10"
             ],
         }
