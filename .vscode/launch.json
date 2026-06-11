@@ -50,6 +50,16 @@
             ],
         },
         {
+            "name": "Model benchmark (trained)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/benchmark.py",
+            "args": [
+                "--model-path", "./local_stuff/checkpoint_best_ema.zip",
+                "--samples", "10"
+            ],
+        },
+        {
             "name": "Model Inference",
             "type": "debugpy",
             "request": "launch",

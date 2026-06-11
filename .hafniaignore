@@ -27,4 +27,3 @@ mlflow.db
 local_stuff/
 trainer.zip
 state.json
-**/**.schema.json
