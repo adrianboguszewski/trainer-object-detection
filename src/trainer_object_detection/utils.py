@@ -45,7 +45,10 @@ def patch_to_support_experiment_tracker_with_hafnia(detr: types.ModuleType):
             for ptl_key, hafnia_key in _METRIC_KEY_MAP.items():
                 value = trainer.callback_metrics.get(ptl_key)
                 if value is not None:
-                    mlflow.log_metric(hafnia_key, float(value), step=epoch)
+                    try:
+                        mlflow.log_metric(hafnia_key, float(value), step=epoch)
+                    except Exception as e:
+                        user_logger.error(f"Failed to log metric to MLflow: {e}")
 
     _original_build_trainer = _rfdetr_training.build_trainer
 
