@@ -82,6 +82,11 @@ def test_export_onnx_script(tmp_path):
     assert len(n_checkpoint_models) > 0, "No ONNX models were exported to the checkpoints directory."
 
 
+def test_export_openvino_script():
+    """Placeholder mirroring the ONNX export test until OpenVINO export support lands."""
+    pytest.skip("OpenVINO export is not supported by RF-DETR 1.8.1 in this repository yet.")
+
+
 class _StubLogger:
     """Minimal stand-in for ``HafniaLogger`` exposing only the checkpoints path."""
 
