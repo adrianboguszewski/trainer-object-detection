@@ -83,25 +83,23 @@ def test_export_onnx_script(tmp_path):
 
 
 def test_export_openvino_script(tmp_path):
-    """Placeholder assertions mirroring the expected OpenVINO export artifact layout."""
-    model_dir = tmp_path / "model"
-    checkpoint_dir = tmp_path / "checkpoints"
-    model_dir.mkdir()
-    checkpoint_dir.mkdir()
+    from scripts.export_openvino import main
 
-    for export_dir in (model_dir, checkpoint_dir):
-        (export_dir / "inference_model.xml").write_text("<xml />")
-        (export_dir / "inference_model.bin").write_bytes(b"openvino-weights")
+    if not torch.cuda.is_available():
+        pytest.skip("CUDA is not available. Skipping integration test.")
+    logger = main()
 
-    openvino_graphs = list(model_dir.glob("*.xml"))
-    assert len(openvino_graphs) > 0, "No OpenVINO graph files were exported."
-    openvino_weights = list(model_dir.glob("*.bin"))
-    assert len(openvino_weights) > 0, "No OpenVINO weights files were exported."
+    model_dir = Path(logger.path_model())
+    assert len(list(model_dir.glob("*.xml"))) > 0, "No OpenVINO graph files were exported."
+    assert len(list(model_dir.glob("*.bin"))) > 0, "No OpenVINO weights files were exported."
 
-    checkpoint_graphs = list(checkpoint_dir.glob("*.xml"))
-    assert len(checkpoint_graphs) > 0, "No OpenVINO graph files were exported to the checkpoints directory."
-    checkpoint_weights = list(checkpoint_dir.glob("*.bin"))
-    assert len(checkpoint_weights) > 0, "No OpenVINO weights files were exported to the checkpoints directory."
+    checkpoint_dir = Path(logger.path_model_checkpoints())
+    assert len(list(checkpoint_dir.glob("*.xml"))) > 0, (
+        "No OpenVINO graph files were exported to the checkpoints directory."
+    )
+    assert len(list(checkpoint_dir.glob("*.bin"))) > 0, (
+        "No OpenVINO weights files were exported to the checkpoints directory."
+    )
 
 
 class _StubLogger:
