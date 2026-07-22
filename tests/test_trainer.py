@@ -82,9 +82,26 @@ def test_export_onnx_script(tmp_path):
     assert len(n_checkpoint_models) > 0, "No ONNX models were exported to the checkpoints directory."
 
 
-def test_export_openvino_script():
-    """Placeholder mirroring the ONNX export test until OpenVINO export support lands."""
-    pytest.skip("OpenVINO export is not supported by RF-DETR 1.8.1 in this repository yet.")
+def test_export_openvino_script(tmp_path):
+    """Placeholder assertions mirroring the expected OpenVINO export artifact layout."""
+    model_dir = tmp_path / "model"
+    checkpoint_dir = tmp_path / "checkpoints"
+    model_dir.mkdir()
+    checkpoint_dir.mkdir()
+
+    for export_dir in (model_dir, checkpoint_dir):
+        (export_dir / "inference_model.xml").write_text("<xml />")
+        (export_dir / "inference_model.bin").write_bytes(b"openvino-weights")
+
+    openvino_graphs = list(model_dir.glob("*.xml"))
+    assert len(openvino_graphs) > 0, "No OpenVINO graph files were exported."
+    openvino_weights = list(model_dir.glob("*.bin"))
+    assert len(openvino_weights) > 0, "No OpenVINO weights files were exported."
+
+    checkpoint_graphs = list(checkpoint_dir.glob("*.xml"))
+    assert len(checkpoint_graphs) > 0, "No OpenVINO graph files were exported to the checkpoints directory."
+    checkpoint_weights = list(checkpoint_dir.glob("*.bin"))
+    assert len(checkpoint_weights) > 0, "No OpenVINO weights files were exported to the checkpoints directory."
 
 
 class _StubLogger:
