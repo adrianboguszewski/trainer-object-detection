@@ -5,13 +5,16 @@ from pathlib import Path
 from typing import Any, List, Optional, Tuple, Type, Union
 
 import torch
+import torchvision.transforms.functional as F
 from hafnia.dataset.benchmark.inference_model import ImageType, InferenceModel
 from hafnia.dataset.hafnia_dataset_types import Bitmask, ModelInfo, TaskInfo
 from hafnia.dataset.primitives import Bbox, Primitive
 from hafnia.log import user_logger
+from PIL import Image
 from pydantic import BaseModel
 from rfdetr import config, detr
 from rfdetr.assets.model_weights import download_pretrain_weights
+from rfdetr.detr import RFDETR
 
 MODEL_CONFIG_NAME = "model_config.json"
 
@@ -38,7 +41,7 @@ class InitModelConfig(BaseModel):
     task: TaskInfo
     model_weight_path: Optional[str]
 
-    def get_trainer(self):
+    def get_trainer(self) -> RFDETR:
         _, model_trainer = primitive_and_model_from_name(self.name, model_weights=self.model_weight_path)
         return model_trainer
 
@@ -106,10 +109,26 @@ class WrappedModel(InferenceModel):
             dtype=torch.float32,
         )
 
-    def predict(self, images: Union[ImageType, List[ImageType]], sample_dict: Optional[dict] = None) -> List[Primitive]:
-        predictions = self.model.predict(images, threshold=self.inference_config.threshold)
-        bboxes: List[Bbox] = to_bbox_primitives(predictions, images.shape[:2], bbox_task=self.task)
-        return bboxes
+    def predict(self, image: ImageType, sample_dict: Optional[dict] = None) -> List[Primitive]:
+        """Run inference on a single image and return its predictions.
+
+        The image may be a file path, a PIL image or a numpy array, with any channel count
+        supported by ``as_rgb_tensor`` - gray scale and RGBA images included.
+
+        Batched inference is provided by ``InferenceModel.predict_batch``, which calls this method
+        once per image.
+        """
+        image_tensor = as_rgb_tensor(image)
+        predictions = self.model.predict(
+            [image_tensor],
+            threshold=self.inference_config.threshold,
+            include_source_image=False,  # To avoid unnecessary conversion back to numpy image
+        )
+        # RF-DETR returns a bare 'Detections' object - not a list - when predicting on a single image.
+        if isinstance(predictions, list):
+            predictions = predictions[0]
+
+        return to_bbox_primitives(predictions, tuple(image_tensor.shape[1:]), bbox_task=self.task)
 
     @staticmethod
     def load_model(path_archive: Union[str, Path], inference_config: InferenceConfig) -> "WrappedModel":
@@ -119,7 +138,8 @@ class WrappedModel(InferenceModel):
         with tempfile.TemporaryDirectory(prefix="trainer_model_") as extract_dir:
             model_config = _load_config_and_weights(path_archive, Path(extract_dir))
             primitive, model = primitive_and_model_from_name(
-                model_config.name, model_weights=str(model_config.model_weight_path)
+                model_name=model_config.name,
+                model_weights=str(model_config.model_weight_path),
             )
 
         if primitive != model_config.task.primitive:
@@ -129,6 +149,38 @@ class WrappedModel(InferenceModel):
             )
 
         return WrappedModel(model=model, task=model_config.task, inference_config=inference_config)
+
+
+def as_rgb_tensor(image: ImageType) -> torch.Tensor:
+    """Return ``image`` as a 3-channel ``(3, H, W)`` float32 tensor with values in [0, 1].
+
+    This is the format that RF-DETR's ``predict()`` passes through untouched, so all conversions
+    happen here instead: RF-DETR only accepts images with as many channels as the model was
+    configured with (3), which rules out the single-channel (gray scale) and 4-channel (RGBA)
+    images found in some datasets. Gray scale images are replicated across the three channels and
+    the alpha channel of RGBA images is dropped.
+    """
+    if isinstance(image, (str, Path)):
+        image = Image.open(str(image))
+
+    if isinstance(image, Image.Image):
+        # Pillow handles the color conversion for all modes, including gray scale ("L"), palette
+        # ("P") and "RGBA", so such images are already 3-channel when converted to a tensor below.
+        image = image.convert("RGB")
+
+    image_tensor = F.to_tensor(image)  # (H, W) / (H, W, C) -> CHW float32 in [0, 1]
+
+    n_channels = image_tensor.shape[0]
+    if n_channels == 1:  # Gray scale image
+        image_tensor = image_tensor.expand(3, -1, -1)
+    elif n_channels == 4:  # RGBA image: the alpha channel is not used by the model
+        image_tensor = image_tensor[:3]
+    elif n_channels != 3:
+        raise ValueError(
+            f"Unsupported image with {n_channels} channels (shape {tuple(image_tensor.shape)}). "
+            "Expected a gray scale (1), RGB (3) or RGBA (4) image."
+        )
+    return image_tensor
 
 
 def _load_config_and_weights(path_archive: Path, extract_dir: Path) -> InitModelConfig:

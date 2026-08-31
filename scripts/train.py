@@ -121,7 +121,7 @@ def main(
         path_dataset = hafnia_utils.get_dataset_path_in_hafnia_cloud()  # The path to hidden dataset
         dataset = HafniaDataset.from_path(path_dataset)
     else:
-        dataset = HafniaDataset.from_name("eccv-cross-city", version="1.0.0")
+        dataset = HafniaDataset.from_name("midwest-traffic-detection", version="1.0.0")
 
     if samples is not None:
         dataset = dataset.select_samples(n_samples=samples)

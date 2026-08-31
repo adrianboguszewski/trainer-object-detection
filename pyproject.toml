@@ -6,9 +6,9 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "cyclopts==4.5.1",
-    "hafnia>=0.8.0",
+    "hafnia==0.8.2",
     "nncf>=3.2.0",
-    "nvidia-ml-py>=13.595.45", # To log GPU metrics in tracker
+    "nvidia-ml-py>=13.595.45",           # To log GPU metrics in tracker
     "openvino>=2026.2.1",
     "pytest>=9.0.1",
     "rfdetr[train,loggers,onnx]==1.8.1",
